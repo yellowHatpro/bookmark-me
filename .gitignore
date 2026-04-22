@@ -1,3 +1,27 @@
 .env
+.env.local
 node_modules
 .idea
+.vscode
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Next.js
+.next/
+out/
+dist/
+build/
+next-env.d.ts
+
+# Misc
+.DS_Store
+*.log
+postgres-data/

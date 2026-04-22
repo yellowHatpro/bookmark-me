@@ -1,0 +1,17 @@
+.venv
+__pycache__
+*.pyc
+.pytest_cache
+.ruff_cache
+.mypy_cache
+
+# Frontend tree isn't needed in the backend image.
+ui
+node_modules
+.next
+
+# Misc
+.git
+.env
+.env.*
+!.env.example
