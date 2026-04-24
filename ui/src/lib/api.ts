@@ -47,6 +47,16 @@ export interface SyncRun {
   error: string | null;
 }
 
+export type VaultDirSource = "env" | "user_config" | "default";
+
+export interface VaultSettings {
+  path: string;
+  source: VaultDirSource;
+  env_override_active: boolean;
+  exists: boolean;
+  file_count: number;
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     ...init,
@@ -119,5 +129,12 @@ export const api = {
     request<Bookmark>(`/bookmarks/${id}`, {
       method: "PATCH",
       body: JSON.stringify({ archived }),
+    }),
+
+  getVaultSettings: () => request<VaultSettings>("/settings/vault"),
+  updateVaultSettings: (payload: { path: string; move: boolean }) =>
+    request<VaultSettings>("/settings/vault", {
+      method: "PUT",
+      body: JSON.stringify(payload),
     }),
 };

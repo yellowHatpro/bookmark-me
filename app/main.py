@@ -8,6 +8,7 @@ from app import vault
 from app.config import get_settings
 from app.routes.accounts import router as accounts_router
 from app.routes.bookmarks import router as bookmarks_router
+from app.routes.settings import router as settings_router
 from app.scheduler import scheduler
 
 logging.basicConfig(
@@ -45,6 +46,7 @@ def create_app() -> FastAPI:
 
     app.include_router(accounts_router)
     app.include_router(bookmarks_router)
+    app.include_router(settings_router)
 
     @app.get("/health")
     async def health() -> dict[str, str]:

@@ -6,8 +6,10 @@ import {
   type Account,
   type Platform,
   type SyncRun,
+  type VaultSettings,
 } from "@/lib/api";
 import {
+  Badge,
   Button,
   Card,
   Input,
@@ -69,6 +71,8 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-6">
+      <VaultSection />
+
       <section className="space-y-3">
         <h2 className="text-lg font-semibold">Accounts</h2>
         {accounts.length === 0 && (
@@ -296,5 +300,163 @@ function AccountForm({
         </div>
       </form>
     </Card>
+  );
+}
+
+function sourceBadge(source: VaultSettings["source"]) {
+  if (source === "env") return <Badge color="orange">env override</Badge>;
+  if (source === "user_config") return <Badge color="blue">user</Badge>;
+  return <Badge color="zinc">default</Badge>;
+}
+
+function VaultSection() {
+  const [current, setCurrent] = useState<VaultSettings | null>(null);
+  const [pending, setPending] = useState("");
+  const [busy, setBusy] = useState<false | "save" | "move">(false);
+  const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    try {
+      const s = await api.getVaultSettings();
+      setCurrent(s);
+      setPending((prev) => (prev === "" ? s.path : prev));
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  async function submit(move: boolean) {
+    if (!current) return;
+    const trimmed = pending.trim();
+    if (!trimmed) {
+      setError("Path cannot be empty.");
+      return;
+    }
+    if (move && trimmed === current.path) {
+      setError("New path is the same as the current one — nothing to move.");
+      return;
+    }
+    if (
+      move &&
+      !confirm(
+        `Move ${current.file_count} vault file${current.file_count === 1 ? "" : "s"} from\n  ${current.path}\nto\n  ${trimmed}?\n\nDestination must be empty or nonexistent.`,
+      )
+    ) {
+      return;
+    }
+    setBusy(move ? "move" : "save");
+    setError(null);
+    setMessage(null);
+    try {
+      const next = await api.updateVaultSettings({ path: trimmed, move });
+      setCurrent(next);
+      setPending(next.path);
+      setMessage(
+        move
+          ? `Moved vault to ${next.path}. ${next.file_count} file${next.file_count === 1 ? "" : "s"} now live there.`
+          : `Saved. Future syncs will write to ${next.path}.`,
+      );
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="space-y-3">
+      <h2 className="text-lg font-semibold">Vault</h2>
+      <Card className="space-y-3">
+        {current === null ? (
+          <div className="text-sm text-zinc-500">Loading…</div>
+        ) : (
+          <>
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 text-sm">
+                <span className="text-zinc-500">Current:</span>
+                <code className="font-mono text-xs break-all text-zinc-800 dark:text-zinc-200">
+                  {current.path}
+                </code>
+                {sourceBadge(current.source)}
+                {current.exists ? (
+                  <Badge color="green">
+                    {current.file_count} file{current.file_count === 1 ? "" : "s"}
+                  </Badge>
+                ) : (
+                  <Badge color="red">missing</Badge>
+                )}
+              </div>
+              {current.env_override_active && (
+                <div className="text-xs text-orange-700 dark:text-orange-300">
+                  <code>VAULT_DIR</code> is set in the environment, so it overrides
+                  whatever you save here. Unset it (remove from <code>.env</code>
+                  {" "}and restart) to let the UI preference take effect.
+                </div>
+              )}
+            </div>
+
+            <label className="text-sm block">
+              <div className="text-xs text-zinc-500 mb-1">
+                New path (absolute, or starting with <code>~</code>)
+              </div>
+              <Input
+                value={pending}
+                onChange={(e) => setPending(e.target.value)}
+                placeholder="/home/you/Documents/bookmark-vault"
+                className="font-mono text-xs"
+              />
+            </label>
+
+            {message && (
+              <div className="text-sm text-emerald-700 dark:text-emerald-300">
+                {message}
+              </div>
+            )}
+            {error && (
+              <div className="text-sm text-rose-700 dark:text-rose-300">{error}</div>
+            )}
+
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button
+                variant="ghost"
+                onClick={() => submit(false)}
+                disabled={busy !== false || pending.trim() === current.path}
+                title="Persist the new path. Existing files are left where they are; future syncs write to the new path."
+              >
+                {busy === "save" ? "Saving…" : "Save path"}
+              </Button>
+              <Button
+                onClick={() => submit(true)}
+                disabled={
+                  busy !== false ||
+                  current.env_override_active ||
+                  pending.trim() === current.path
+                }
+                title={
+                  current.env_override_active
+                    ? "Disabled because VAULT_DIR env is set."
+                    : "Move the current vault contents to the new path, then persist."
+                }
+              >
+                {busy === "move" ? "Moving…" : "Save + move contents"}
+              </Button>
+            </div>
+
+            <div className="text-xs text-zinc-500 leading-relaxed">
+              The vault is the single source of truth: every synced bookmark is
+              written as <code>{"<platform>/<external_id>.md"}</code>, and the DB
+              can be rebuilt from it with{" "}
+              <code>scripts/restore_from_vault.py</code>. Safe to keep on
+              Syncthing, iCloud Drive, or an Obsidian workspace.
+            </div>
+          </>
+        )}
+      </Card>
+    </section>
   );
 }

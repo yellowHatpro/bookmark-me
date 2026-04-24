@@ -68,3 +68,28 @@ class SyncRunOut(BaseModel):
 
 class ArchiveUpdate(BaseModel):
     archived: bool
+
+
+VaultDirSource = Literal["env", "user_config", "default"]
+
+
+class VaultSettings(BaseModel):
+    path: str
+    source: VaultDirSource
+    env_override_active: bool
+    exists: bool
+    file_count: int
+
+
+class VaultSettingsUpdate(BaseModel):
+    path: str = Field(
+        min_length=1,
+        description="Absolute path, or a `~`-prefixed path. Tilde is expanded server-side.",
+    )
+    move: bool = Field(
+        default=False,
+        description=(
+            "Move existing vault contents to the new path. Requires the "
+            "destination to be empty or nonexistent."
+        ),
+    )

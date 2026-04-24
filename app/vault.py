@@ -27,7 +27,7 @@ from typing import Any
 
 import yaml
 
-from app.config import get_settings
+from app import user_config
 from app.fetchers.base import FetchedItem
 
 log = logging.getLogger(__name__)
@@ -63,8 +63,12 @@ class VaultRecord:
 
 
 def vault_root() -> Path:
-    """Resolve the configured vault dir, creating it if missing."""
-    root = get_settings().vault_dir
+    """Resolve the effective vault dir (env > user_config > default), creating it if missing.
+
+    Re-reads on every call so a runtime change via `PUT /settings/vault` is
+    picked up immediately without bouncing the process.
+    """
+    root = user_config.effective_vault_dir()
     root.mkdir(parents=True, exist_ok=True)
     return root
 
