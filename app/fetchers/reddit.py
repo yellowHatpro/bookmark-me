@@ -29,9 +29,19 @@ class RedditFetcher(Fetcher):
             raise FetcherError("Reddit account is missing its username; re-add the account.")
 
         settings = get_settings()
+        # Reddit's edge 403s bot-looking requests even with a valid reddit_session
+        # cookie, so we send a Chrome-shaped header set instead of `bookmark-me/0.1`.
         headers = {
             "User-Agent": settings.reddit_user_agent,
-            "Accept": "application/json",
+            "Accept": "application/json, text/javascript, */*; q=0.01",
+            "Accept-Language": "en-US,en;q=0.9",
+            "Accept-Encoding": "gzip, deflate, br",
+            "Referer": f"https://old.reddit.com/user/{username}/saved/",
+            "Sec-Fetch-Dest": "empty",
+            "Sec-Fetch-Mode": "cors",
+            "Sec-Fetch-Site": "same-origin",
+            "Cache-Control": "no-cache",
+            "Pragma": "no-cache",
         }
         base = f"https://old.reddit.com/user/{username}/saved.json"
 
@@ -50,8 +60,20 @@ class RedditFetcher(Fetcher):
                     params["after"] = after
 
                 resp = await client.get(base, params=params)
-                if resp.status_code in (401, 403):
-                    raise AuthError(f"Reddit rejected session ({resp.status_code}).")
+                if resp.status_code == 401:
+                    raise AuthError("Reddit rejected session (401). Paste fresh cookies.")
+                if resp.status_code == 403:
+                    # 403 with reason phrase "Blocked" comes from Reddit's edge/anti-bot,
+                    # not from the auth layer. Usually means the UA looks bot-like or
+                    # the cookie jar is too sparse -- and a fresh paste fixes both,
+                    # since browsers set several companion cookies alongside reddit_session.
+                    reason = resp.reason_phrase or "Forbidden"
+                    raise AuthError(
+                        f"Reddit blocked the request (403 {reason}). "
+                        "This usually means your pasted cookies are incomplete or stale. "
+                        "In DevTools, copy the *entire* Cookie header from a request "
+                        "to reddit.com while logged in and paste it again."
+                    )
                 if resp.status_code == 429:
                     raise FetcherError("Reddit rate limited us (429). Try again later.")
                 if resp.status_code >= 400:

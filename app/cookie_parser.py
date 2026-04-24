@@ -38,9 +38,17 @@ PLATFORM_REQUIRED = {
     "reddit": ["reddit_session"],
 }
 
+# Optional cookies we keep *if present* so the request looks like a real browser
+# session. Reddit's edge (Fastly/anti-bot) 403s minimal cookie jars even when
+# `reddit_session` is valid -- it wants to see the usual companions.
+PLATFORM_OPTIONAL_KEPT = {
+    "x": [],
+    "reddit": ["token_v2", "loid", "edgebucket", "reddit_device_id", "csv"],
+}
+
 
 def extract_required(platform: str, raw_cookies: str) -> dict[str, str]:
-    """Pull only the fields a given platform fetcher needs."""
+    """Validate the required cookies are there, and return everything we want to keep."""
     jar = parse_cookie_header(raw_cookies)
     required = PLATFORM_REQUIRED.get(platform, [])
     missing = [name for name in required if name not in jar]
@@ -49,4 +57,9 @@ def extract_required(platform: str, raw_cookies: str) -> dict[str, str]:
             f"Missing required cookies for {platform}: {', '.join(missing)}. "
             f"Paste the full Cookie header from DevTools."
         )
-    return {k: jar[k] for k in required}
+    optional = PLATFORM_OPTIONAL_KEPT.get(platform, [])
+    kept: dict[str, str] = {k: jar[k] for k in required}
+    for k in optional:
+        if k in jar:
+            kept[k] = jar[k]
+    return kept

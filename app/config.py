@@ -28,7 +28,13 @@ class Settings(BaseSettings):
     )
     x_bookmarks_query_id: str = _DEFAULT_X_BOOKMARKS_QUERY_ID
 
-    reddit_user_agent: str = "bookmark-me/0.1 (personal sync)"
+    # Reddit's edge 403s obviously-bot User-Agents. Since we're scraping the
+    # same endpoint old.reddit.com hits from a logged-in browser, we send the
+    # same shape of UA string. Override via REDDIT_USER_AGENT in .env.
+    reddit_user_agent: str = (
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+    )
 
     @field_validator("x_bookmarks_query_id", mode="before")
     @classmethod
