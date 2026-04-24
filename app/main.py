@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app import vault
 from app.config import get_settings
 from app.routes.accounts import router as accounts_router
 from app.routes.bookmarks import router as bookmarks_router
@@ -17,6 +18,8 @@ logging.basicConfig(
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    vault_path = vault.vault_root()
+    logging.getLogger(__name__).info("Vault SSoT at %s", vault_path.resolve())
     scheduler.start()
     try:
         await scheduler.reload_from_db()

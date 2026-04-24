@@ -30,12 +30,14 @@ services:
       SYNC_INTERVAL_MIN: ${SYNC_INTERVAL_MIN:-15}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
       X_BOOKMARKS_QUERY_ID: ${X_BOOKMARKS_QUERY_ID:-}
+      VAULT_DIR: /app/vault
     ports:
       - "8000:8000"
     volumes:
       - ./app:/app/app
       - ./migrations:/app/migrations
       - ./alembic.ini:/app/alembic.ini
+      - ./vault:/app/vault
     command: >
       sh -c "uv run alembic upgrade head &&
              uv run uvicorn app.main:app --host 0.0.0.0 --port 8000"

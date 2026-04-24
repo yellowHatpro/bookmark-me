@@ -103,6 +103,63 @@ Required fields: `reddit_session`. You also need to enter your Reddit username
 3. Copy the full Cookie header from any request (Network tab → Headers → Cookie) and
    paste into the Settings form. The backend extracts just `reddit_session`.
 
+## Local markdown vault (single source of truth)
+
+Every synced bookmark is also written to a local markdown file under
+`./vault/<platform>/<external_id>.md`. Postgres is a derived index; the vault
+is the SSoT — you can `rm -rf` the DB and rebuild it from the vault.
+
+Layout:
+
+```
+vault/
+  x/1879234567890123456.md
+  reddit/t3_abc123.md
+  reddit/t1_xyz789.md
+```
+
+Each file is YAML frontmatter plus CommonMark. Everything above the `## Notes`
+heading is sync-owned and rewritten on every sync; **everything below
+`## Notes` is user-owned and never touched** — safe place to scribble.
+
+```markdown
+---
+platform: reddit
+external_id: t3_abc123
+url: https://www.reddit.com/r/rust/...
+title: A post about rust
+author_handle: jane_doe
+saved_at: 2026-04-20T10:00:00Z
+archived: false
+media: []
+account_label: main
+---
+
+# A post about rust
+
+<post body>
+
+## Notes
+<!-- everything below this line is user-owned; sync never overwrites it -->
+
+my thoughts...
+```
+
+### Vault commands
+
+```bash
+# Dump the entire DB back to markdown (e.g. after a format change):
+uv run python scripts/rebuild_vault.py
+
+# Rebuild the DB from the vault after a DB wipe
+# (re-add your accounts in Settings first so cookies exist):
+uv run python scripts/restore_from_vault.py
+uv run python scripts/restore_from_vault.py --dry-run   # preview
+```
+
+The vault path is configurable via `VAULT_DIR` in `.env`. Point Obsidian,
+ripgrep, or a future RAG loader at it.
+
 ## How the fetchers work (no official APIs)
 
 Each fetcher hits the same internal endpoint the web UI uses, with the session

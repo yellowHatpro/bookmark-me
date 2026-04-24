@@ -1,4 +1,5 @@
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -35,6 +36,11 @@ class Settings(BaseSettings):
         "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
         "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
     )
+
+    # On-disk markdown vault. This is the single source of truth: Postgres is a
+    # derived index that can always be rebuilt from the vault via
+    # `scripts/restore_from_vault.py`.
+    vault_dir: Path = Path("./vault")
 
     @field_validator("x_bookmarks_query_id", mode="before")
     @classmethod

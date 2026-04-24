@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app import vault
 from app.config import get_settings
 from app.crypto import decrypt_json
 from app.db import SessionLocal
@@ -90,7 +91,18 @@ async def _do_fetch(session: AsyncSession, account: Account) -> int:
             .returning(Bookmark.id)
         )
         result = await session.execute(stmt)
-        if result.scalar_one_or_none() is not None:
+        inserted = result.scalar_one_or_none() is not None
+        # Mirror to the vault regardless of whether the row was new: title/text
+        # can change upstream between syncs, and the vault is our SSoT, so it
+        # should always reflect the latest fetch. User notes below `## Notes`
+        # are preserved by vault.write_from_item itself.
+        try:
+            vault.write_from_item(item, account_label=account.label)
+        except Exception:
+            log.exception(
+                "Failed to write vault file for %s/%s", item.platform, item.external_id
+            )
+        if inserted:
             new_count += 1
             known_ids.add(item.external_id)
 
